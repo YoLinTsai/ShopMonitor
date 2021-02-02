@@ -9,6 +9,8 @@ from io import StringIO
 import time
 from datetime import datetime
 from pynput import keyboard
+from bs4 import BeautifulSoup
+from selenium.webdriver.chrome.options import Options
 
 ASOS_URL = [    "https://www.asos.com/us/search/?currentpricerange=5-75&q=new%20balance&sort=freshness",
                 "https://www.asos.com/search/?currentpricerange=5-175&q=nike&sort=freshness",
@@ -60,44 +62,17 @@ class Good:
         self.price = price
         self.href = href
 
-def get(url):
-    try:
-        #response = requests.get(url, headers=headers)
-        response = requests.get(url, headers=headers, timeout=5)
-    except requests.exceptions.Timeout as errt:
-        print ("Timeout Error:",errt)
-    except requests.exceptions.RequestException as e:  # This is the correct syntax
-        raise SystemExit(e)
-    
-    return response
-
 class Distiller:
-    def __init__(self, url, cookie, keyWords, headers, title):
+    def __init__(self, mode, url, cookie, keyWords, headers, title):
+        self.mode = mode
         self.url = url
         self.cookie = cookie
         self.keyWords = keyWords
         self.headers = headers
         self.title = title
-        self.session = requests.Session()
         #self.firstCheckURL()
-        self.goodList = self.parseHTML(get(self.url))
+        self.goodList = self.getCurGoodList()
         self.showGoodList(2)
-
-    def firstCheckURL(self):
-        self.driver = webdriver.Chrome()
-        self.driver.get(self.url)
-        curCookie = self.driver.get_cookies()
-        for cookie in curCookie:
-            self.session.cookies.set(cookie['name'], cookie['value'])
-        
-        self.driver.close()
-        try:
-            self.session.get(self.url, timeout=5)
-            print("OMG")
-        except requests.exceptions.Timeout as errt:
-            print ("Timeout Error:",errt)
-        except requests.exceptions.RequestException as e:  # This is the correct syntax
-            raise SystemExit(e)
 
     def setCookie(self, cookie):
         self.cookie = cookie
@@ -115,13 +90,7 @@ class Distiller:
 
     def refreshGoodList(self):
         # get url response again and check if new good arrives
-        try:
-            response = get(self.url)
-        except requests.exceptions.RequestException as e:  # This is the correct syntax
-            raise SystemExit(e)
-
-        curGoodList = self.parseHTML(response) 
-        self.setCookie(requests.utils.dict_from_cookiejar(response.cookies))
+        curGoodList = self.getCurGoodList()
         newGoodList = []
         checkPoint = -1;
         for i in range(len(curGoodList)):
@@ -146,17 +115,39 @@ class Distiller:
                 if good.desc.find(kw) != -1:
                     slackWrapper.pinSlack(self.title, good.desc, good.href)
 
-    def parseHTML(self, response):
-        parser = etree.HTMLParser()
-        tree = html.fromstring(response.content)
-        goods = tree.xpath('//article/a')
-
+    def getCurGoodList(self):
         goodList = []
-        for i in range(len(goods)):
-            token = goods[i].attrib['aria-label'].split('; ')
-            href = goods[i].attrib['href']
 
-            goodList.append(Good(token[0], token[1], href))
+        if self.mode == 'selenium':
+            self.driver = webdriver.Chrome()
+            self.driver.get(self.url)
+            HTML = self.driver.page_source
+            soup = BeautifulSoup(HTML, "lxml")
+            for article in soup.find_all('article'):
+                e = article.find_all('a')[0]
+                token = e.get('aria-label').split('; ')
+                href = e.get('href')
+                goodList.append(Good(token[0], token[1], href))
+            self.driver.close()
+        else:
+            try:
+                #response = requests.get(url, headers=headers)
+                response = requests.get(self.url, headers=self.headers, timeout=5)
+            except requests.exceptions.Timeout as errt:
+                print ("Timeout Error:",errt)
+            except requests.exceptions.RequestException as e:  # This is the correct syntax
+                raise SystemExit(e)
+            #self.setCookie(requests.utils.dict_from_cookiejar(response.cookies))
+            parser = etree.HTMLParser()
+            tree = html.fromstring(response.content)
+            goods = tree.xpath('//article/a')
+
+
+            for i in range(len(goods)):
+                token = goods[i].attrib['aria-label'].split('; ')
+                href = goods[i].attrib['href']
+                goodList.append(Good(token[0], token[1], href))
+
         return goodList
 
 class SlackWrapper:
@@ -176,14 +167,14 @@ def on_release(key):
     try:
         if key.char == 'q':
             global exit_flag
-            exit_flag = True
+            exit_flag = False
             return False
     except:
         pass
 
 slackWrapper = SlackWrapper()
 exit_flag = False
-interval = 10 #sec
+interval = 5 #sec
 
 def main():
 
@@ -191,7 +182,7 @@ def main():
     distillers = []
     print('\033[1;;45m  First Check  \033[0m')
     for i in range(len(ASOS_URL)):
-        distillers.append(Distiller(ASOS_URL[i], cookie, keyWords[i], headers, title[i]))
+        distillers.append(Distiller('selenium', ASOS_URL[i], cookie, keyWords[i], headers, title[i]))
 
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         while not exit_flag:
