@@ -20,7 +20,6 @@ headers = {'authority': 'www.asos.com'
             ,'accept-encoding': 'gzip, deflate, br'
             ,'accept-language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
             ,'cache-control': 'max-age=0'
-            ,'cookie': cookie
             ,'if-none-match': 'W/"5552e-cA/yOC/oPEqKlGJTCuEOPig1648""'
             ,'referer': 'https://www.asos.com/'
             ,'sec-fetch-dest': 'document'
@@ -79,13 +78,13 @@ class Distiller:
         newGoodList = []
         checkPoint = -1;
 
-        '''
+        
         testGoodList = []
         testGoodList.append(Good("new balance 327","test","test"))
         testGoodList.extend(curGoodList)
 
         curGoodList=testGoodList
-        '''
+        
 
         for i in range(len(curGoodList)):
             if curGoodList[i].desc == self.goodList[0].desc:
