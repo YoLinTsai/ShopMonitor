@@ -41,12 +41,14 @@ class FileWriter:
 
 driver = webdriver.Chrome()
 logger = FileWriter("newGoodData.txt")
+periodical_logger = FileWriter("30minCheckList.txt")
 with open('config.json') as config_file: 
     config = json.load(config_file) 
 
 class Good:
-    def __init__(self, desc, price, href):
+    def __init__(self, desc, _id, price, href):
         self.desc = desc
+        self.id = _id
         self.price = price
         self.href = href
 
@@ -78,41 +80,47 @@ class Distiller:
         newGoodList = []
         checkPoint = -1;
 
-        
+        '''
         testGoodList = []
-        testGoodList.append(Good("new balance 327","test","test"))
+        testGoodList.append(Good("new balance 327","testID","test","test"))
         testGoodList.extend(curGoodList)
 
         curGoodList=testGoodList
-        
+        '''
 
+        checkID = self.goodList[0].id
         for i in range(len(curGoodList)):
-            if curGoodList[i].desc == self.goodList[0].desc:
+            if curGoodList[i].id == checkID:
                 checkPoint = i
 
-        showNum = 2
         if checkPoint == 0:
-            showNum = 0
+            pass
         elif checkPoint == -1:
             self.goodList = curGoodList
             newGoodList = curGoodList
         else:
             self.goodList = curGoodList
-            newGoodList = curGoodList[0:checkPoint]
+            if len(curGoodList) > checkPoint:
+                newGoodList = curGoodList[0:checkPoint]
 
         if checkPoint != 0:
             self.writeNewGoodInfo(newGoodList)
             self.checkKeyWords(newGoodList)
-            #self.checkKeyWords(self.goodList)
 
     def writeNewGoodInfo(self, goodList):
         now = datetime.now()
-        current_time = now.strftime("%Y/%m/%d, %H:%M:%S\n")
+        current_time = now.strftime("%Y/%m/%d, %H:%M:%S\n\n")
         logger.write(current_time)
         for good in goodList:
-            logger.write(self.title+"\n")
-            logger.write(good.desc+"\n")
-            logger.write(good.href+"\n")
+            logger.write(self.title+"\n"+good.desc+"\n"+good.href+"\n\n")
+
+    def dumpGoodInfo(self):
+        now = datetime.now()
+        current_time = now.strftime("%Y/%m/%d, %H:%M:%S\n\n")
+        periodical_logger.write(current_time)
+        periodical_logger.write("====="+self.title+"=====\n\n")
+        for good in self.goodList:
+            periodical_logger.write(good.desc+"\n")
 
     def checkKeyWords(self, goodList):
         for kw in self.keyWords:
@@ -120,6 +128,10 @@ class Distiller:
                 curDesc = good.desc.lower()
                 if curDesc.find(kw.lower()) != -1:
                     slackWrapper.pinSlack(self.title, good.desc, good.href)
+
+    def passAllGood(self, goodList):
+        for good in goodList:
+            slackWrapper.pinSlack(self.title, good.desc, good.href)
 
     def getCurGoodList(self):
         goodList = []
@@ -133,9 +145,10 @@ class Distiller:
                     soup = BeautifulSoup(HTML, "lxml")
                     for article in soup.find_all('article'):
                         e = article.find_all('a')[0]
+                        _id = article.get('id')
                         token = e.get('aria-label').split('; ')
                         href = e.get('href')
-                        goodList.append(Good(token[0], token[1], href))
+                        goodList.append(Good(token[0], _id, token[1], href))
                     #self.driver.close()
                 except:
                     continue
@@ -166,7 +179,7 @@ class SlackWrapper:
         self.headers = config["headers"]
     
     def pinSlack(self, website, desc, href):
-        message = website + "\n" + desc + '\n' + href + '\n'
+        message = website + "\n" + desc + '\n' + href + '\n\n'
         data = {'text': message}
         r = requests.post(self.webhookURL, data=json.dumps(data), headers=self.headers)
 
@@ -190,17 +203,25 @@ def main():
 
     #initial and first check
     distillers = []
+    last_record_time = datetime.now()
+
     print('\033[1;;45m  First Check  \033[0m')
     for i in range(len(config["distiller"])):
         distillers.append(Distiller('selenium', 
             config["distiller"][i],
             headers))
 
+
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         while not exit_flag:
             time.sleep(interval);
             now = datetime.now()
             current_time = now.strftime("%Y/%m/%d, %H:%M:%S")
+
+            duration = (now-last_record_time).total_seconds()
+            if duration > 1800:
+                for i in range(len(distillers)):
+                    distillers[i].dumpGoodInfo()
 
             for i in range(len(distillers)):
                 distillers[i].refreshGoodList()
