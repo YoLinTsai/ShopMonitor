@@ -139,7 +139,7 @@ class Distiller:
 
     def writeNewGoodInfo(self, goodList):
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S\n")
+        current_time = now.strftime("%Y/%m/%d, %H:%M:%S\n")
         logger.write(current_time)
         for good in goodList:
             logger.write(self.title+"\n")
@@ -158,15 +158,19 @@ class Distiller:
 
         if self.mode == 'selenium':
             global driver
-            driver.get(self.url)
-            HTML = driver.page_source
-            soup = BeautifulSoup(HTML, "lxml")
-            for article in soup.find_all('article'):
-                e = article.find_all('a')[0]
-                token = e.get('aria-label').split('; ')
-                href = e.get('href')
-                goodList.append(Good(token[0], token[1], href))
-            #self.driver.close()
+            while len(goodList) == 0:
+                try:
+                    driver.get(self.url)
+                    HTML = driver.page_source
+                    soup = BeautifulSoup(HTML, "lxml")
+                    for article in soup.find_all('article'):
+                        e = article.find_all('a')[0]
+                        token = e.get('aria-label').split('; ')
+                        href = e.get('href')
+                        goodList.append(Good(token[0], token[1], href))
+                    #self.driver.close()
+                except:
+                    continue
         else:
             try:
                 #response = requests.get(url, headers=headers)
@@ -190,7 +194,7 @@ class Distiller:
 
 class SlackWrapper:
     def __init__(self):
-        self.webhookURL = "https://hooks.slack.com/services/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"
+        self.webhookURL = 
         self.headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     
     def pinSlack(self, website, desc, href):
@@ -226,7 +230,7 @@ def main():
         while not exit_flag:
             time.sleep(interval);
             now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
+            current_time = now.strftime("%Y/%m/%d, %H:%M:%S")
 
             for i in range(len(distillers)):
                 distillers[i].refreshGoodList()
