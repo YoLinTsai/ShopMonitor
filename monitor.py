@@ -105,7 +105,14 @@ class Distiller:
 
         if checkPoint != 0:
             self.writeNewGoodInfo(newGoodList)
-            self.checkKeyWords(newGoodList)
+
+            #pin all new list to slack
+            self.passAllGood(newGoodList)
+
+            #check key word in new list
+            #self.checkKeyWords(newGoodList)
+
+
 
     def writeNewGoodInfo(self, goodList):
         now = datetime.now()
@@ -222,6 +229,7 @@ def main():
             if duration > 1800:
                 for i in range(len(distillers)):
                     distillers[i].dumpGoodInfo()
+                    last_record_time = now
 
             for i in range(len(distillers)):
                 distillers[i].refreshGoodList()
