@@ -61,7 +61,14 @@ class Distiller:
         self.headers = headers
         #self.firstCheckURL()
         self.goodList = self.getCurGoodList()
+        self.IDSet = self.buildIDSet()
         self.showGoodList(2)
+
+    def buildIDSet(self):
+        goodSet = set()
+        for good in self.goodList:
+            goodSet.add(good.id)
+        return goodSet
 
     def showGoodList(self, showNum):
         if showNum == 0:
@@ -78,8 +85,6 @@ class Distiller:
         # get url response again and check if new good arrives
         curGoodList = self.getCurGoodList()
         newGoodList = []
-        checkPoint = -1;
-
         '''
         testGoodList = []
         testGoodList.append(Good("new balance 327","testID","test","test"))
@@ -87,7 +92,19 @@ class Distiller:
 
         curGoodList=testGoodList
         '''
+        for curGood in curGoodList:
+            curID = curGood.id
+            if curID not in self.IDSet:
+                print(curID)
+                newGoodList.append(curGood)
 
+        if len(newGoodList) != 0:
+            self.goodList = curGoodList
+            self.IDSet = self.buildIDSet()
+            self.writeNewGoodInfo(newGoodList)
+            self.passAllGood(newGoodList)
+
+        '''
         checkID = self.goodList[0].id
         for i in range(len(curGoodList)):
             if curGoodList[i].id == checkID:
@@ -111,8 +128,7 @@ class Distiller:
 
             #check key word in new list
             #self.checkKeyWords(newGoodList)
-
-
+        '''
 
     def writeNewGoodInfo(self, goodList):
         now = datetime.now()
