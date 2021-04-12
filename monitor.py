@@ -11,6 +11,7 @@ from datetime import datetime
 from pynput import keyboard
 from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
+import codecs
 
 headers = {'authority': 'www.asos.com'
             ,'method': 'GET'
@@ -31,7 +32,7 @@ headers = {'authority': 'www.asos.com'
 
 class FileWriter:
     def __init__(self, filename):
-        self.fp = open(filename, "a")
+        self.fp = codecs.open(filename, "a", 'utf-8')
 
     def write(self, string):
         self.fp.write(string)
